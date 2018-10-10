@@ -4,6 +4,12 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -16,138 +22,140 @@ import java.util.stream.Collectors;
 public class Main {
 	
 	public static Map<String, Team> teamMap;
-	public static int k = 32;
+	public static double k = 32.0;
+	public static Connection conn = null;
 
-	public static void main(String[] args) {
-		File file = new File("C:\\Users\\Kyle\\Documents\\scores_week_0.txt"); 
-		teamMap = new HashMap<String, Team>();
-				  
-		BufferedReader br;
+	public static void main(String[] args) {	    
+		connect();
+		
+		String gamesQuery = "SELECT week, winner, loser, winning_score, losing_score FROM Games";
 		try {
-			br = new BufferedReader(new FileReader(file));
+			Statement statement = conn.createStatement();
+			ResultSet results = statement.executeQuery(gamesQuery);
 			
-			String st; 
-			while ((st = br.readLine()) != null) {
-				String[] splitString = parseGame(st);
-				String homeTeamString = splitString[0];
-				Integer homeTeamScore = Integer.parseInt(splitString[1]);
-				String awayTeamString = splitString[2];
-				Integer awayTeamScore = Integer.parseInt(splitString[3]);
+			while (results.next()) {
+				int week = results.getInt("week");
+				String winner = results.getString("winner");
+				String loser = results.getString("loser");
+				int winningScore = results.getInt("winning_score");
+				int losingScore = results.getInt("losing_score");
+				System.out.println(week + " " + winner + " " + loser + " " + winningScore + " " + losingScore);
 				
-				// TODO: Fix this so they're actually the home and away team
-				Team homeTeam = teamMap.get(homeTeamString);
-				Team awayTeam = teamMap.get(awayTeamString);
-				if (homeTeam == null) {
-					homeTeam = new Team(homeTeamString);
-					teamMap.put(homeTeamString, homeTeam);
-				}
+				String teamQuery = "SELECT rating FROM teams WHERE team = ?";
+				PreparedStatement winnerPreparedStatement = conn.prepareStatement(teamQuery);
+				winnerPreparedStatement.setString(1, winner);
+				int winnerRating = winnerPreparedStatement.executeQuery().getInt("rating");
 				
-				if (awayTeam == null) {
-					awayTeam = new Team(awayTeamString);
-					teamMap.put(awayTeamString, awayTeam);
-				}
+				PreparedStatement loserPreparedStatement = conn.prepareStatement(teamQuery);
+				loserPreparedStatement.setString(1, loser);
+				int loserRating = loserPreparedStatement.executeQuery().getInt("rating");
 				
-				Game game = new Game(homeTeam, awayTeam);
-				if (homeTeamScore > awayTeamScore) {
-					updateRating(homeTeam, awayTeam);
-				} else {
-					updateRating(awayTeam, homeTeam);
-				}
+				System.out.println("Winner rating: " + winnerRating);
+				System.out.println("Loser rating: " + loserRating);
+				
+				List<Integer> updatedRatings = updateRatings(winnerRating, loserRating);
+				
+				int winnerUpdatedRating = updatedRatings.get(0);
+				int loserUpdatedRating = updatedRatings.get(1);
+				
+				System.out.println("Winner updated rating: " + winnerUpdatedRating);
+				System.out.println("Loser updated rating: " + loserUpdatedRating);
+				
+				String weekText = "week_" + convertWeek(week) + "_rating";
+				String updateQuery = "UPDATE Teams SET rating = ?, " + weekText + " = ? WHERE team = ?";
+				
+				PreparedStatement winnerUpdateStatement = conn.prepareStatement(updateQuery);
+				winnerUpdateStatement.setDouble(1, winnerUpdatedRating);
+				winnerUpdateStatement.setDouble(2, winnerUpdatedRating);
+				winnerUpdateStatement.setString(3, winner);
+				winnerUpdateStatement.executeUpdate();
+				
+				PreparedStatement loserUpdateStatement = conn.prepareStatement(updateQuery);
+				loserUpdateStatement.setDouble(1, loserUpdatedRating);
+				loserUpdateStatement.setDouble(2, loserUpdatedRating);
+				loserUpdateStatement.setString(3, loser);
+				loserUpdateStatement.executeUpdate();
 			}
-			
-			List<Team> teams = new ArrayList<>();
-			for (Team team : teamMap.values()) {
-				teams.add(team);
-			}
-			
-			System.out.println(teams.size());
-			
-			Collections.sort(teams, new TeamSort());
-			
-			for (Team team : teams) {
-				System.out.println(team.getName() + "\t\t" + team.getRating());
-			}
-
-		} catch (Exception e) {
+		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} 
-	}
-	
-	public static Game parseGame(String st) {
-		String[] splitStr = st.split("\\s+");
-		
-		String winningTeamStr = "";
-		String winningTeamScore = "";
-		String losingTeamStr = "";
-		String losingTeamScore = "";
-		
-		boolean firstColumn = true;
-		boolean firstTeam = false;
-		for (String str : splitStr) {
-			if (firstColumn) {
-				firstColumn = false;
-				firstTeam = true;
-				continue;
-			} else if (firstTeam) {
-				if (!Character.isDigit(str.charAt(0))) {
-					winningTeamStr += str + " ";
-				} else {
-					winningTeamScore = str;
-				}
-			} else {
-				if (!Character.isDigit(str.charAt(0))) {
-					losingTeamStr += str + " ";
-				} else {
-					losingTeamScore = str;
-				}
-			}
-		}
-		
-		Team homeTeam = null;
-		Team awayTeam = null;
-		Integer home
-		
-		if (winningTeamStr.charAt(0) == '@') {
-			winningTeamStr.replace("@", "");
-			homeTeam = teamMap.get(winningTeamStr);
-			if (homeTeam == null) {
-				homeTeam = new Team(winningTeamStr);
-			}
-			
-			awayTeam = teamMap.get(losingTeamStr);
-			if (awayTeam == null) {
-				awayTeam = new Team(losingTeamStr);
-			}
-		} else {
-			losingTeamStr.replace("@", "");
-			homeTeam = teamMap.get(losingTeamStr);
-			if (homeTeam == null) {
-				homeTeam = new Team(losingTeamStr);
-			}
-			
-			awayTeam = teamMap.get(winningTeamStr);
-			if (awayTeam == null) {
-				awayTeam = new Team(winningTeamStr);
-			}
 		}
 	}
 	
-	public static void updateRating(Team winningTeam, Team losingTeam ) {
-		double winningTeamOriginalRating = winningTeam.getRating();
-		double losingTeamOriginalRating = losingTeam.getRating();
+	/**
+     * Connect to a sample database
+     */
+    public static void connect() {
+        try {
+            // db parameters
+            String url = "jdbc:sqlite:C:/Users/Kyle/Development/sr-stat-parsing/nfl_teams.sqlite";
+            // create a connection to the database
+            conn = DriverManager.getConnection(url);
+            
+            System.out.println("Connection to SQLite has been established.");
+            
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+    }
+	
+	public static List<Integer> updateRatings(int winnerRating, int loserRating) {
+		double winningTeamOriginalRating = winnerRating;
+		double losingTeamOriginalRating = loserRating;
 		
-		double winningTeamTransformedRating = Math.pow(10, (winningTeamOriginalRating / 400));
-		double losingTeamTransformedRating = Math.pow(10, (losingTeamOriginalRating / 400));
+		double winningTeamTransformedRating = Math.pow(10.0, (winningTeamOriginalRating / 400.0));
+		double losingTeamTransformedRating = Math.pow(10.0, (losingTeamOriginalRating / 400.0));
 		
 		double winningTeamExpectedScore = winningTeamTransformedRating / (winningTeamTransformedRating + losingTeamTransformedRating);
 		double losingTeamExpectedScore = losingTeamTransformedRating / (winningTeamTransformedRating + losingTeamTransformedRating);
 		
-		Double winningTeamUpdatedRating = winningTeamOriginalRating + (k * (1 - winningTeamExpectedScore));
-		Double losingTeamUpdatedRating = losingTeamOriginalRating + (k * (0 - losingTeamExpectedScore));
+		Integer winningTeamUpdatedRating = (int) (winningTeamOriginalRating + (k * (1.0 - winningTeamExpectedScore)));
+		Integer losingTeamUpdatedRating = (int) (losingTeamOriginalRating + (k * (0.0 - losingTeamExpectedScore)));
 		
-		winningTeam.setRating(winningTeamUpdatedRating);
-		losingTeam.setRating(losingTeamUpdatedRating);
+		List<Integer> updatedRatings = new ArrayList<>(2);
+		updatedRatings.add(winningTeamUpdatedRating);
+		updatedRatings.add(losingTeamUpdatedRating);
 		
+		return updatedRatings;
+	}
+	
+	public static String convertWeek(int week) {
+		String weekString = null;
+		switch (week) {
+			case 1: weekString = "one";
+					break;
+			case 2: weekString = "two";
+					break;
+			case 3: weekString = "three";
+					break;
+			case 4: weekString = "four";
+					break;
+			case 5: weekString = "five";
+					break;
+			case 6: weekString = "six";
+					break;
+			case 7: weekString = "seven";
+					break;
+			case 8: weekString = "eight";
+					break;
+			case 9: weekString = "nine";
+					break;
+			case 10: weekString = "ten";
+					break;
+			case 11: weekString = "eleven";
+					break;
+			case 12: weekString = "twelve";
+					break;
+			case 13: weekString = "thirteen";
+					break;
+			case 14: weekString = "fourteen";
+					break;
+			case 15: weekString = "fifteen";
+					break;
+			case 16: weekString = "sixteen";
+					break;
+		}
+		
+		return weekString;
 	}
 }
