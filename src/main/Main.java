@@ -41,14 +41,20 @@ public class Main {
 				int losingScore = results.getInt("losing_score");
 				System.out.println(week + " " + winner + " " + loser + " " + winningScore + " " + losingScore);
 				
-				String teamQuery = "SELECT rating FROM teams WHERE team = ?";
+				String teamQuery = "SELECT rating, wins, losses, ties FROM teams WHERE team = ?";
 				PreparedStatement winnerPreparedStatement = conn.prepareStatement(teamQuery);
 				winnerPreparedStatement.setString(1, winner);
 				int winnerRating = winnerPreparedStatement.executeQuery().getInt("rating");
+				int winnerWins = winnerPreparedStatement.executeQuery().getInt("wins");
+				int winnerLosses = winnerPreparedStatement.executeQuery().getInt("losses");
+				int winnerTies = winnerPreparedStatement.executeQuery().getInt("ties");
 				
 				PreparedStatement loserPreparedStatement = conn.prepareStatement(teamQuery);
 				loserPreparedStatement.setString(1, loser);
 				int loserRating = loserPreparedStatement.executeQuery().getInt("rating");
+				int loserWins = loserPreparedStatement.executeQuery().getInt("wins");
+				int loserLosses = loserPreparedStatement.executeQuery().getInt("losses");
+				int loserTies = loserPreparedStatement.executeQuery().getInt("ties");
 				
 				System.out.println("Winner rating: " + winnerRating);
 				System.out.println("Loser rating: " + loserRating);
@@ -62,20 +68,26 @@ public class Main {
 				System.out.println("Loser updated rating: " + loserUpdatedRating);
 				
 				String weekText = "week_" + convertWeek(week) + "_rating";
-				String updateQuery = "UPDATE Teams SET rating = ?, " + weekText + " = ? WHERE team = ?";
+				String updateQuery = "UPDATE Teams SET rating = ?, " + weekText + " = ?, wins = ?, losses = ? WHERE team = ?";
 				
 				PreparedStatement winnerUpdateStatement = conn.prepareStatement(updateQuery);
 				winnerUpdateStatement.setDouble(1, winnerUpdatedRating);
 				winnerUpdateStatement.setDouble(2, winnerUpdatedRating);
-				winnerUpdateStatement.setString(3, winner);
+				winnerUpdateStatement.setDouble(3, winnerWins + 1);
+				winnerUpdateStatement.setDouble(4, winnerLosses);
+				winnerUpdateStatement.setString(5, winner);
 				winnerUpdateStatement.executeUpdate();
 				
 				PreparedStatement loserUpdateStatement = conn.prepareStatement(updateQuery);
 				loserUpdateStatement.setDouble(1, loserUpdatedRating);
 				loserUpdateStatement.setDouble(2, loserUpdatedRating);
-				loserUpdateStatement.setString(3, loser);
+				loserUpdateStatement.setDouble(3, loserWins);
+				loserUpdateStatement.setDouble(4, loserLosses + 1);
+				loserUpdateStatement.setString(5, loser);
 				loserUpdateStatement.executeUpdate();
 			}
+			
+			printRankings();
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -157,5 +169,26 @@ public class Main {
 		}
 		
 		return weekString;
+	}
+	
+	public static void printRankings() {
+		String ratingsQuery = "SELECT team, rating, wins, losses FROM Teams ORDER BY rating DESC";
+		try {
+			Statement statement = conn.createStatement();
+			ResultSet results = statement.executeQuery(ratingsQuery);
+			
+			int count = 1;
+			while (results.next()) {
+				String team = count + ". " + results.getString("team");
+				String record = results.getString("wins") 
+				int rating = results.getInt("rating");
+				String format = "%-10%s-40s%s%n";
+				System.out.printf(format, team, rating);
+				count++;
+			}
+		} catch (Exception e) {
+			System.out.println(e);
+	}
+				
 	}
 }
