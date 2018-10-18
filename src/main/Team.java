@@ -1,39 +1,25 @@
 package main;
 
-import java.util.List;
+import java.util.Comparator;
 
 public class Team {
 
 	private String name;
-	private List<Game> schedule;
-	private Double rating = 1500.0;
-	private Long strengthOfSchedule;
-	
-	public Team(List<Game> schedule) {
-		this.schedule = schedule;
-	}
+	private int rating = 1500;
+	private int wins = 0;
+	private int losses = 0;
+	private int ties = 0;
 	
 	public Team(String name) {
 		this.name = name;
 	}
 	
-	public List<Game> getSchedule() {
-		return schedule;
-	}
-	public void setSchedule(List<Game> schedule) {
-		this.schedule = schedule;
-	}
-	public Double getRating() {
+	public int getRating() {
 		return rating;
 	}
-	public void setRating(Double rating) {
+	
+	public void setRating(int rating) {
 		this.rating = rating;
-	}
-	public Long getStrengthOfSchedule() {
-		return strengthOfSchedule;
-	}
-	public void setStrengthOfSchedule(Long strengthOfSchedule) {
-		this.strengthOfSchedule = strengthOfSchedule;
 	}
 
 	public String getName() {
@@ -43,6 +29,40 @@ public class Team {
 	public void setName(String name) {
 		this.name = name;
 	}
+
+	public int getWins() {
+		return wins;
+	}
+
+	public void setWins(int wins) {
+		this.wins = wins;
+	}
 	
+	public void incrementWins() {
+		this.wins++;
+	}
+
+	public int getLosses() {
+		return losses;
+	}
+
+	public void setLosses(int losses) {
+		this.losses = losses;
+	}
 	
+	public void incrementLosses() {
+		this.losses++;
+	}
+
+	public int getTies() {
+		return ties;
+	}
+
+	public void setTies(int ties) {
+		this.ties = ties;
+	}
+	
+	public void incrementTies() {
+		this.ties++;
+	}
 }

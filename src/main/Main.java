@@ -22,76 +22,22 @@ import java.util.stream.Collectors;
 public class Main {
 	
 	public static Map<String, Team> teamMap;
+	public static List<Game> schedule;
 	public static double k = 32.0;
 	public static Connection conn = null;
 
 	public static void main(String[] args) {	    
 		connect();
 		
-		String gamesQuery = "SELECT week, winner, loser, winning_score, losing_score FROM Games";
-		try {
-			Statement statement = conn.createStatement();
-			ResultSet results = statement.executeQuery(gamesQuery);
-			
-			while (results.next()) {
-				int week = results.getInt("week");
-				String winner = results.getString("winner");
-				String loser = results.getString("loser");
-				int winningScore = results.getInt("winning_score");
-				int losingScore = results.getInt("losing_score");
-				System.out.println(week + " " + winner + " " + loser + " " + winningScore + " " + losingScore);
-				
-				String teamQuery = "SELECT rating, wins, losses, ties FROM teams WHERE team = ?";
-				PreparedStatement winnerPreparedStatement = conn.prepareStatement(teamQuery);
-				winnerPreparedStatement.setString(1, winner);
-				int winnerRating = winnerPreparedStatement.executeQuery().getInt("rating");
-				int winnerWins = winnerPreparedStatement.executeQuery().getInt("wins");
-				int winnerLosses = winnerPreparedStatement.executeQuery().getInt("losses");
-				int winnerTies = winnerPreparedStatement.executeQuery().getInt("ties");
-				
-				PreparedStatement loserPreparedStatement = conn.prepareStatement(teamQuery);
-				loserPreparedStatement.setString(1, loser);
-				int loserRating = loserPreparedStatement.executeQuery().getInt("rating");
-				int loserWins = loserPreparedStatement.executeQuery().getInt("wins");
-				int loserLosses = loserPreparedStatement.executeQuery().getInt("losses");
-				int loserTies = loserPreparedStatement.executeQuery().getInt("ties");
-				
-				System.out.println("Winner rating: " + winnerRating);
-				System.out.println("Loser rating: " + loserRating);
-				
-				List<Integer> updatedRatings = updateRatings(winnerRating, loserRating);
-				
-				int winnerUpdatedRating = updatedRatings.get(0);
-				int loserUpdatedRating = updatedRatings.get(1);
-				
-				System.out.println("Winner updated rating: " + winnerUpdatedRating);
-				System.out.println("Loser updated rating: " + loserUpdatedRating);
-				
-				String weekText = "week_" + convertWeek(week) + "_rating";
-				String updateQuery = "UPDATE Teams SET rating = ?, " + weekText + " = ?, wins = ?, losses = ? WHERE team = ?";
-				
-				PreparedStatement winnerUpdateStatement = conn.prepareStatement(updateQuery);
-				winnerUpdateStatement.setDouble(1, winnerUpdatedRating);
-				winnerUpdateStatement.setDouble(2, winnerUpdatedRating);
-				winnerUpdateStatement.setDouble(3, winnerWins + 1);
-				winnerUpdateStatement.setDouble(4, winnerLosses);
-				winnerUpdateStatement.setString(5, winner);
-				winnerUpdateStatement.executeUpdate();
-				
-				PreparedStatement loserUpdateStatement = conn.prepareStatement(updateQuery);
-				loserUpdateStatement.setDouble(1, loserUpdatedRating);
-				loserUpdateStatement.setDouble(2, loserUpdatedRating);
-				loserUpdateStatement.setDouble(3, loserWins);
-				loserUpdateStatement.setDouble(4, loserLosses + 1);
-				loserUpdateStatement.setString(5, loser);
-				loserUpdateStatement.executeUpdate();
-			}
-			
-			printRankings();
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		teamMap = new HashMap<String, Team>(32);
+		createTeamMap();
+		
+		schedule = new ArrayList<>();
+		createSchedule();
+		
+		playbackSchedule();
+		
+		persistTeams();
 	}
 	
 	/**
@@ -111,9 +57,87 @@ public class Main {
         }
     }
 	
-	public static List<Integer> updateRatings(int winnerRating, int loserRating) {
-		double winningTeamOriginalRating = winnerRating;
-		double losingTeamOriginalRating = loserRating;
+	public static void createTeamMap() {
+		String teamsQuery = "SELECT team FROM Teams";
+		try {
+			Statement statement = conn.createStatement();
+			ResultSet results = statement.executeQuery(teamsQuery);
+			
+			while (results.next()) {
+				String teamName = results.getString("team");
+				teamMap.put(teamName, new Team(teamName));
+			} 
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	public static void createSchedule() {
+		String gamesQuery = "SELECT week, winner, winning_team_home, winning_score, loser, losing_score FROM Games";
+		try {
+			Statement statement = conn.createStatement();
+			ResultSet results = statement.executeQuery(gamesQuery);
+			
+			while (results.next()) {
+				int week = results.getInt("week");
+				Team winningTeam = teamMap.get(results.getString("winner"));
+				Team losingTeam = teamMap.get(results.getString("loser"));
+				int winningScore = results.getInt("winning_score");
+				int losingScore = results.getInt("losing_score");
+				
+				int winningTeamHome = results.getInt("winning_team_home");
+				Team homeTeam;
+				if (winningTeamHome == 1) {
+					homeTeam = winningTeam;
+				} else {
+					homeTeam = losingTeam;
+				}
+				
+				Game game = new Game(winningTeam, winningScore, losingTeam, losingScore, homeTeam, week);
+				schedule.add(game);
+			}
+		
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	public static void playbackSchedule() {
+		int week = 1;
+		for (Game game : schedule) {
+			if (game.getWeek() != week) {
+				printRankings();
+				week++;
+			}
+			
+			Team winningTeam = game.getWinningTeam();
+			Team losingTeam = game.getLosingTeam();
+			int margin = Math.abs(game.getWinningScore() - game.getLosingScore());
+			Team homeTeam = game.getHomeTeam();
+			
+			updateRatings(winningTeam, losingTeam, margin, homeTeam);
+		}
+		
+		printRankings();
+	}
+	
+	
+	
+	public static void updateRatings(Team winningTeam, Team losingTeam, int margin, Team homeTeam) {
+		
+		// TODO: Factor in margin of victory and location
+		
+		// TODO: Handle ties better
+		if (margin == 0) {
+			winningTeam.incrementTies();
+			losingTeam.incrementTies();
+			return;
+		}
+		
+		double winningTeamOriginalRating = winningTeam.getRating();
+		double losingTeamOriginalRating = losingTeam.getRating();
 		
 		double winningTeamTransformedRating = Math.pow(10.0, (winningTeamOriginalRating / 400.0));
 		double losingTeamTransformedRating = Math.pow(10.0, (losingTeamOriginalRating / 400.0));
@@ -121,14 +145,33 @@ public class Main {
 		double winningTeamExpectedScore = winningTeamTransformedRating / (winningTeamTransformedRating + losingTeamTransformedRating);
 		double losingTeamExpectedScore = losingTeamTransformedRating / (winningTeamTransformedRating + losingTeamTransformedRating);
 		
-		Integer winningTeamUpdatedRating = (int) (winningTeamOriginalRating + (k * (1.0 - winningTeamExpectedScore)));
-		Integer losingTeamUpdatedRating = (int) (losingTeamOriginalRating + (k * (0.0 - losingTeamExpectedScore)));
+		int winningTeamUpdatedRating = (int) (winningTeamOriginalRating + (k * (1.0 - winningTeamExpectedScore)));
+		int losingTeamUpdatedRating = (int) (losingTeamOriginalRating + (k * (0.0 - losingTeamExpectedScore)));
 		
-		List<Integer> updatedRatings = new ArrayList<>(2);
-		updatedRatings.add(winningTeamUpdatedRating);
-		updatedRatings.add(losingTeamUpdatedRating);
-		
-		return updatedRatings;
+		winningTeam.setRating(winningTeamUpdatedRating);
+		winningTeam.incrementWins();
+		losingTeam.setRating(losingTeamUpdatedRating);
+		losingTeam.incrementLosses();
+	}
+	
+	public static void persistTeams() {
+		for (Map.Entry<String, Team> entry : teamMap.entrySet()) {
+			Team team = entry.getValue();
+			
+			try {
+				String updateQuery = "UPDATE Teams SET rating = ?, wins = ?, losses = ?, ties = ? WHERE team = ?";
+				
+				PreparedStatement updateStatement = conn.prepareStatement(updateQuery);
+				updateStatement.setDouble(1, team.getRating());
+				updateStatement.setDouble(2, team.getWins());
+				updateStatement.setDouble(3, team.getLosses());
+				updateStatement.setDouble(4, team.getLosses());
+				updateStatement.setString(5, team.getName());
+				updateStatement.executeUpdate();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
 	}
 	
 	public static String convertWeek(int week) {
@@ -172,23 +215,25 @@ public class Main {
 	}
 	
 	public static void printRankings() {
-		String ratingsQuery = "SELECT team, rating, wins, losses FROM Teams ORDER BY rating DESC";
-		try {
-			Statement statement = conn.createStatement();
-			ResultSet results = statement.executeQuery(ratingsQuery);
+		List<Team> teamList = new ArrayList<Team>(teamMap.values());
+		Collections.sort(teamList, new TeamComparator());
+		
+		int count = 1;
+		for (Team team : teamList) {
+			String teamNameString = count + ". " + team.getName();
 			
-			int count = 1;
-			while (results.next()) {
-				String team = count + ". " + results.getString("team");
-				String record = results.getString("wins") 
-				int rating = results.getInt("rating");
-				String format = "%-10%s-40s%s%n";
-				System.out.printf(format, team, rating);
-				count++;
-			}
-		} catch (Exception e) {
-			System.out.println(e);
-	}
-				
+			int wins = team.getWins();
+			int losses = team.getLosses();
+			int ties = team.getTies();
+			String recordString = wins + "-" + losses + "-" + ties;
+			
+			int rating = team.getRating();
+			
+			String format = "%-30.30s %-10.30s  %-3.4s%n";
+			System.out.printf(format, teamNameString, recordString, rating);
+			count++;
+		}
+		
+		System.out.println();
 	}
 }

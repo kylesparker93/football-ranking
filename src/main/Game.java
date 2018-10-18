@@ -1,70 +1,75 @@
 package main;
 
 public class Game {
-	private Team homeTeam;
-	private Team awayTeam;
 	
-	private boolean played = false;
-	private Team winningTeam = null;
-	private Team losingTeam = null;
-	private Integer winningScore;
-	private Integer losingScore;
+	Team winningTeam;
+	int winningScore;
 	
-	public Game(Team homeTeam, Team awayTeam) {
-		this.homeTeam = homeTeam;
-		this.awayTeam = awayTeam;
-	}
+	Team losingTeam;
+	int losingScore;
 	
-	public Game(Team homeTeam, Team awayTeam,
-				Team winningTeam, Integer winningScore,
-				Team losingTeam, Integer losingScore) {
-		this(homeTeam, awayTeam);
+	Team homeTeam;
+	
+	int week;
+	
+	public Game(Team winningTeam, int winningScore,
+				Team losingTeam, int losingScore,
+				Team homeTeam, int week) {
 		this.winningTeam = winningTeam;
 		this.winningScore = winningScore;
 		this.losingTeam = losingTeam;
 		this.losingScore = losingScore;
+		this.homeTeam = homeTeam;
+		this.week = week;
 	}
-	
-	public Team getTeam1() {
-		return homeTeam;
-	}
-	public void setTeam1(Team team1) {
-		this.homeTeam = team1;
-	}
-	public Team getTeam2() {
-		return awayTeam;
-	}
-	public void setTeam2(Team team2) {
-		this.awayTeam = team2;
-	}
-	public boolean isPlayed() {
-		return played;
-	}
-	public void setPlayed(boolean played) {
-		this.played = played;
-	}
+
 	public Team getWinningTeam() {
-		return homeTeam;
+		return winningTeam;
 	}
+
 	public void setWinningTeam(Team winningTeam) {
-		this.homeTeam = winningTeam;
+		this.winningTeam = winningTeam;
 	}
-	public Team getLosingTeam() {
-		return awayTeam;
-	}
-	public void setLosingTeam(Team losingTeam) {
-		this.awayTeam = losingTeam;
-	}
-	public Integer getWinningScore() {
+
+	public int getWinningScore() {
 		return winningScore;
 	}
-	public void setWinningScore(Integer winningScore) {
+
+	public void setWinningScore(int winningScore) {
 		this.winningScore = winningScore;
 	}
-	public Integer getLosingScore() {
+
+	public Team getLosingTeam() {
+		return losingTeam;
+	}
+
+	public void setLosingTeam(Team losingTeam) {
+		this.losingTeam = losingTeam;
+	}
+
+	public int getLosingScore() {
 		return losingScore;
 	}
-	public void setLosingScore(Integer losingScore) {
+
+	public void setLosingScore(int losingScore) {
 		this.losingScore = losingScore;
 	}
+
+	public Team getHomeTeam() {
+		return homeTeam;
+	}
+
+	public void setHomeTeam(Team homeTeam) {
+		this.homeTeam = homeTeam;
+	}
+	
+	public int getWeek() {
+		return this.week;
+	}
+	
+	public void setWeek(int week) {
+		this.week = week;
+	}
+	
+	
 }
