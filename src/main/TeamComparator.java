@@ -7,7 +7,7 @@ public class TeamComparator implements Comparator<Team> {
 	@Override
 	public int compare(Team t1, Team t2) {
 		// TODO Auto-generated method stub
-		return t2.getRating() - t1.getRating();
+		return t2.getCurrentRating() - t1.getCurrentRating();
 	}
 	
 }

@@ -5,21 +5,23 @@ import java.util.Comparator;
 public class Team {
 
 	private String name;
-	private int rating = 1500;
+	private int currentRating = 1500;
+	private int finalRating; 
 	private int wins = 0;
 	private int losses = 0;
 	private int ties = 0;
 	
-	public Team(String name) {
+	public Team(String name, int finalRating) {
 		this.name = name;
+		this.finalRating = finalRating;
 	}
 	
-	public int getRating() {
-		return rating;
+	public int getCurrentRating() {
+		return currentRating;
 	}
 	
-	public void setRating(int rating) {
-		this.rating = rating;
+	public void setCurrentRating(int rating) {
+		this.currentRating = rating;
 	}
 
 	public String getName() {
@@ -64,5 +66,13 @@ public class Team {
 	
 	public void incrementTies() {
 		this.ties++;
+	}
+
+	public int getFinalRating() {
+		return finalRating;
+	}
+
+	public void setFinalRating(int finalRating) {
+		this.finalRating = finalRating;
 	}
 }
