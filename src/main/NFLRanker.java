@@ -15,7 +15,7 @@ public class NFLRanker {
 	
 	public static Map<String, Team> teamMap;
 	public static List<Game> schedule;
-	public static double k = 32.0;
+	public double k = 32.0;
 	public static Connection conn = null;
 	
 	public NFLRanker() {
@@ -112,6 +112,12 @@ public class NFLRanker {
 			winningTeam.incrementTies();
 			losingTeam.incrementTies();
 			return;
+		} else if (margin > 14) {
+			k = 34;
+		} else if (margin > 21) {
+			k = 36;
+		} else {
+			k = 30;
 		}
 		
 		double winningTeamFinalRating = winningTeam.getFinalRating();

@@ -8,8 +8,10 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 public class CFBRanker {
 	
@@ -37,16 +39,39 @@ public class CFBRanker {
 	}
 	
 	private void createTeamMap() {
-		String teamsQuery = "SELECT team, rating FROM Teams";
+		String teamsQuery = "SELECT winner, winner_fcs, loser, loser_fcs FROM Games";
 		try {
 			Statement statement = conn.createStatement();
 			ResultSet results = statement.executeQuery(teamsQuery);
 			
 			while (results.next()) {
-				String teamName = results.getString("team");
-				int finalRating = results.getInt("rating");
-				teamMap.put(teamName, new Team(teamName, finalRating));
-			} 
+				String winner = sanatizeTeamString(results.getString("winner"));
+				boolean winner_fcs = results.getInt("winner_fcs") == 1 ? true : false;
+				String loser = sanatizeTeamString(results.getString("loser"));
+				boolean loser_fcs = results.getInt("loser_fcs") == 1 ? true : false;
+				
+				if (!winner_fcs && teamMap.get(winner) == null) {
+					teamMap.put(winner, new Team(winner, 1500));
+				}
+				
+				if (!loser_fcs && teamMap.get(loser) == null) {
+					teamMap.put(loser,  new Team(loser, 1500));
+				}
+			}
+			
+			String insertTeamQuery = "INSERT INTO Teams(team, rating, wins, losses, ties) VALUES(?, ?, ?, ?, ?)";
+			
+			Iterator<Entry<String, Team>> it = teamMap.entrySet().iterator();
+		    while (it.hasNext()) {
+		        Map.Entry<String, Team> pair = (Map.Entry<String, Team>) it.next();
+		        PreparedStatement preparedStatement = conn.prepareStatement(insertTeamQuery);
+		        preparedStatement.setString(1,  pair.getKey());
+		        preparedStatement.setInt(2,  pair.getValue().getCurrentRating());
+		        preparedStatement.setInt(3,  0);
+		        preparedStatement.setInt(4,  0);
+		        preparedStatement.setInt(5,  0);
+		        preparedStatement.executeUpdate();
+		    }
 			
 			Team fcsPlaceholder = new Team("FCS", 1200);
 			teamMap.put("FCS", fcsPlaceholder);
@@ -113,7 +138,13 @@ public class CFBRanker {
 	
 	private static String sanatizeTeamString(String team) {
 		if (team.charAt(0) == '(') {
-			return team.split("\\)")[1].substring(1);
+			String[] splitString = team.split("\\)");
+			
+			if (team.contains("Miami")) {
+				return splitString[1].substring(1) + ")";
+			} else {
+				return splitString[1].substring(1);
+			}
 		} else {
 			return team;
 		}
@@ -180,6 +211,10 @@ public class CFBRanker {
 		for (Map.Entry<String, Team> entry : teamMap.entrySet()) {
 			Team team = entry.getValue();
 			
+			if (entry.getKey().equals("FCS")) {
+				continue;
+			}
+			
 			try {
 				String updateQuery = "UPDATE Teams SET rating = ?, wins = ?, losses = ?, ties = ? WHERE team = ?";
 				
@@ -202,6 +237,9 @@ public class CFBRanker {
 		
 		int count = 1;
 		for (Team team : teamList) {
+			if (team.getName().equals("FCS")) {
+				continue;
+			}
 			String teamNameString = count + ". " + team.getName();
 			
 			int wins = team.getWins();
